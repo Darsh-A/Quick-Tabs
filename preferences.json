@@ -1,0 +1,100 @@
+[
+  {
+    "type": "text",
+    "label": "📑 Quick Tabs Configuration",
+    "margin": "30px 0 15px 0",
+    "size": "20px"
+  },
+  {
+    "type": "text",
+    "label": "‼️Make sure to Clear Startup Cache in the browser settings to take effect‼️",
+    "margin": "20px 0 15px 0",
+    "size": "20px"
+  },
+
+  {
+    "type": "separator",
+    "label": "⚙️ Appearance Settings",
+    "margin": "20px 0 8px 0"
+  },
+  {
+    "type": "dropdown",
+    "property": "extensions.quicktabs.theme",
+    "label": "Quick Tabs theme",
+    "value": "string",
+    "default": "dark",
+    "placeholder": false,
+    "options": [
+      { "label": "Dark Theme", "value": "dark" },
+      { "label": "Light Theme", "value": "light" }
+    ],
+    "restart": true
+  },
+  {
+    "type": "checkbox",
+    "property": "extensions.quicktabs.animations.enabled",
+    "label": "Enable animations",
+    "default": true,
+    "restart": true
+  },
+
+  {
+    "type": "separator",
+    "label": "🖱️ Behavior Settings",
+    "margin": "25px 0 8px 0"
+  },
+  {
+    "type": "dropdown",
+    "property": "extensions.quicktabs.taskbar.trigger",
+    "label": "Taskbar trigger method",
+    "value": "string",
+    "default": "hover",
+    "placeholder": false,
+    "options": [
+      { "label": "Show on Hover", "value": "hover" },
+      { "label": "Show on Click", "value": "click" }
+    ],
+    "restart": true
+  },
+  {
+    "type": "string",
+    "property": "extensions.quicktabs.context_menu.access_key",
+    "label": "Context menu access key",
+    "default": "T",
+    "restart": true
+  },
+
+  {
+    "type": "separator",
+    "label": "📏 Size & Limits",
+    "margin": "25px 0 8px 0"
+  },
+  {
+    "type": "string",
+    "property": "extensions.quicktabs.maxContainers",
+    "label": "Maximum number of Quick Tab containers",
+    "default": "5",
+    "restart": true
+  },
+  {
+    "type": "string",
+    "property": "extensions.quicktabs.defaultWidth",
+    "label": "Default container width (pixels)",
+    "default": "400",
+    "restart": true
+  },
+  {
+    "type": "string",
+    "property": "extensions.quicktabs.defaultHeight",
+    "label": "Default container height (pixels)",
+    "default": "500",
+    "restart": true
+  },
+  {
+    "type": "string",
+    "property": "extensions.quicktabs.taskbar.minWidth",
+    "label": "Taskbar minimum width (pixels)",
+    "default": "200",
+    "restart": true
+  }
+] 

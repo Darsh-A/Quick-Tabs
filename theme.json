@@ -1,0 +1,24 @@
+{
+    "id": "quick-tabs",
+    "name": "Quick Tabs",
+    "description": "A Quick and easy way to browse tabs without leaving focus of whats important.",
+    "homepage": "https://github.com/Darsh-A/Ai-TabGroups-ZenBrowser/tree/dev",
+    "preferences": "https://raw.githubusercontent.com/Darsh-A/Ai-TabGroups-ZenBrowser/refs/heads/dev/preferences.json",
+    "image": "https://github.com/Darsh-A/Ai-TabGroups-ZenBrowser/blob/main/image.jpg?raw=true",
+    "js": true,
+    "readme": "https://raw.githubusercontent.com/Darsh-A/Ai-TabGroups-ZenBrowser/refs/heads/dev/README.md",
+    "author": "Darsh A",
+    "version": "1.0.0",
+    "tags": [
+        "sine",
+        "Quick Tab",
+        "Tab",
+        "Quick",
+        "fx-autoconfig",
+        "JavaScript",
+        "Darsh A"
+    ],
+    "createdAt": "2025-07-17",
+    "updatedAt": "2025-07-17",
+    "fork": ["zen"]
+}

@@ -60,6 +60,14 @@
     let quickTabContainers = new Map(); // id -> container info
     let nextContainerId = 1;
     let taskbarExpanded = false;
+    let commandListenerAdded = false;
+
+    // Quick Tab command state for passing parameters
+    let quickTabCommandData = {
+        url: '',
+        title: '',
+        sourceTab: null
+    };
 
     // Utility function to get favicon
     const getFaviconUrl = (url) => {
@@ -85,6 +93,42 @@
             }
         } catch (e) {
             return 'Quick Tab';
+        }
+    };
+
+    // Function to get tab data (URL, title) from tab element
+    const getTabData = (tab) => {
+        if (!tab || !tab.isConnected) {
+            return {
+                url: '',
+                title: 'Quick Tab'
+            };
+        }
+        
+        try {
+            // Get the browser associated with the tab
+            const browser = tab.linkedBrowser || tab._linkedBrowser || gBrowser?.getBrowserForTab?.(tab);
+            let url = '';
+            let title = '';
+            
+            // Get URL
+            if (browser?.currentURI?.spec && !browser.currentURI.spec.startsWith('about:')) {
+                url = browser.currentURI.spec;
+            }
+            
+            // Get title using existing function
+            title = getTabTitleFromElement(tab);
+            
+            return {
+                url: url || '',
+                title: title || 'Quick Tab'
+            };
+        } catch (e) {
+            console.error('QuickTabs: Error getting tab data:', e);
+            return {
+                url: '',
+                title: 'Quick Tab'
+            };
         }
     };
 
@@ -557,10 +601,30 @@
         console.log('QuickTabs: Loading content in browser...');
         loadContentInBrowser(browser, url);
 
-        // Function to update title from various sources
+        // Function to update title and URL from various sources
         const updateContainerTitle = () => {
             try {
                 let pageTitle = null;
+                let currentUrl = null;
+                
+                // Get current URL from browser
+                try {
+                    if (browser.currentURI?.spec) {
+                        currentUrl = browser.currentURI.spec;
+                    } else if (browser.contentDocument?.location?.href) {
+                        currentUrl = browser.contentDocument.location.href;
+                    }
+                } catch (e) {
+                    console.warn('QuickTabs: Could not get current URL:', e);
+                }
+                
+                // Update URL in container info if it changed
+                if (currentUrl && currentUrl !== containerInfo.url && !currentUrl.startsWith('about:')) {
+                    console.log('QuickTabs: URL changed from', containerInfo.url, 'to', currentUrl);
+                    containerInfo.url = currentUrl;
+                    // Update favicon for new URL
+                    favicon.src = getFaviconUrl(currentUrl);
+                }
                 
                 // Try multiple methods to get the page title
                 if (browser.contentTitle) {
@@ -579,7 +643,8 @@
                     updateTaskbar();
                 } else {
                     // Use URL-based title as fallback
-                    const fallbackTitle = getTabTitle(url);
+                    const currentUrlForTitle = currentUrl || containerInfo.url;
+                    const fallbackTitle = getTabTitle(currentUrlForTitle);
                     if (fallbackTitle !== containerInfo.title) {
                         console.log('QuickTabs: Using fallback title:', fallbackTitle);
                         titleElement.textContent = truncateText(fallbackTitle, 30);
@@ -600,6 +665,23 @@
         browser.addEventListener('load', () => {
             setTimeout(updateContainerTitle, 500);
             setTimeout(updateContainerTitle, 2000); // Try again after 2 seconds
+        });
+
+        // Update title when page is shown (back/forward navigation)
+        browser.addEventListener('pageshow', () => {
+            setTimeout(updateContainerTitle, 100);
+        });
+
+        // Update title when DOM content is loaded
+        browser.addEventListener('DOMContentLoaded', () => {
+            setTimeout(updateContainerTitle, 100);
+        });
+
+        // Listen for location changes (URL changes)
+        browser.addEventListener('locationchange', () => {
+            console.log('QuickTabs: Location changed, updating title');
+            setTimeout(updateContainerTitle, 100);
+            setTimeout(updateContainerTitle, 1000); // Try again after 1 second
         });
 
         // Also try to update title periodically for the first 10 seconds
@@ -771,8 +853,14 @@
 
         const toggle = document.createElement('button');
         toggle.className = 'quicktabs-taskbar-toggle';
+        const strokeColor = THEME === 'light' ? '#333' : 'currentColor';
         toggle.innerHTML = `
-            <span style="font-size: 16px; margin-right: 6px;">📑</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="16" height="16" style="margin-right: 6px;">
+                <rect x="10" y="10" width="80" height="80" rx="10" ry="10" fill="none" stroke="${strokeColor}" stroke-width="3"/>
+                <line x1="10" y1="30" x2="90" y2="30" stroke="${strokeColor}" stroke-width="3"/>
+                <circle cx="81" cy="20" r="4" fill="none" stroke="${strokeColor}" stroke-width="3"/>
+                <path d="M 35 70 L 65 40 M 50 40 L 65 40 L 65 55" stroke="${strokeColor}" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
             <span style="font-size: 12px; font-weight: 600;">Quick Tabs</span>
         `;
         toggle.title = 'Quick Tabs';
@@ -1043,12 +1131,197 @@
         console.log('QuickTabs: Injecting CSS...');
         injectCSS();
         
+        // Setup commands
+        console.log('QuickTabs: Setting up commands...');
+        setupCommands();
+        
         // Add context menu item
         console.log('QuickTabs: Adding context menu item...');
         addContextMenuItem();
         
         console.log('QuickTabs: Initialized successfully');
     }
+
+    // Command setup and handling
+    function setupCommands() {
+        const zenCommands = document.querySelector("commandset#zenCommandSet");
+        if (!zenCommands) {
+            console.log('QuickTabs: zenCommandSet not found, retrying in 500ms');
+            setTimeout(setupCommands, 500);
+            return;
+        }
+
+        // Add Quick Tab commands if they don't exist
+        if (!zenCommands.querySelector("#cmd_zenOpenQuickTab")) {
+            try {
+                const commandFragment = window.MozXULElement.parseXULToFragment(`<command id="cmd_zenOpenQuickTab"/>`);
+                zenCommands.appendChild(commandFragment.firstChild);
+                console.log('QuickTabs: Added cmd_zenOpenQuickTab command');
+            } catch (e) {
+                console.error('QuickTabs: Error adding cmd_zenOpenQuickTab:', e);
+            }
+        }
+
+        if (!zenCommands.querySelector("#cmd_zenOpenQuickTabFromCurrent")) {
+            try {
+                const commandFragment = window.MozXULElement.parseXULToFragment(`<command id="cmd_zenOpenQuickTabFromCurrent"/>`);
+                zenCommands.appendChild(commandFragment.firstChild);
+                console.log('QuickTabs: Added cmd_zenOpenQuickTabFromCurrent command');
+            } catch (e) {
+                console.error('QuickTabs: Error adding cmd_zenOpenQuickTabFromCurrent:', e);
+            }
+        }
+
+        // Add command listener if not already added
+        if (!commandListenerAdded) {
+            try {
+                zenCommands.addEventListener('command', handleQuickTabCommands);
+                commandListenerAdded = true;
+                console.log('QuickTabs: Command listener added successfully');
+            } catch (e) {
+                console.error('QuickTabs: Error adding command listener:', e);
+            }
+        }
+    }
+
+    function handleQuickTabCommands(event) {
+        try {
+            switch (event.target.id) {
+                case 'cmd_zenOpenQuickTab':
+                    handleOpenQuickTabCommand();
+                    break;
+                case 'cmd_zenOpenQuickTabFromCurrent':
+                    handleOpenQuickTabFromCurrentCommand();
+                    break;
+            }
+        } catch (e) {
+            console.error('QuickTabs: Error handling command:', e);
+        }
+    }
+
+    function handleOpenQuickTabCommand() {
+        console.log('QuickTabs: cmd_zenOpenQuickTab triggered');
+        
+        const url = quickTabCommandData.url || '';
+        const title = quickTabCommandData.title || '';
+        
+        if (!url) {
+            console.warn('QuickTabs: No URL provided for Quick Tab');
+            return;
+        }
+
+        // Reset command data after use
+        quickTabCommandData = { url: '', title: '', sourceTab: null };
+        
+        createQuickTabContainer(url, title);
+    }
+
+    function handleOpenQuickTabFromCurrentCommand() {
+        console.log('QuickTabs: cmd_zenOpenQuickTabFromCurrent triggered');
+        
+        try {
+            const currentTab = gBrowser.selectedTab;
+            if (!currentTab) {
+                console.warn('QuickTabs: No current tab selected');
+                return;
+            }
+
+            const currentTabData = getTabData(currentTab);
+            
+            if (!currentTabData.url || currentTabData.url === 'about:blank') {
+                console.warn('QuickTabs: Current tab has no valid URL');
+                return;
+            }
+
+            createQuickTabContainer(currentTabData.url, currentTabData.title);
+        } catch (e) {
+            console.error('QuickTabs: Error opening Quick Tab from current tab:', e);
+        }
+    }
+
+    // Public API functions for other scripts to use
+    window.QuickTabs = {
+        // Open a Quick Tab with specified URL and optional title
+        openQuickTab: function(url, title = '') {
+            if (!url) {
+                console.warn('QuickTabs: URL is required');
+                return false;
+            }
+            
+            console.log('QuickTabs: API call to open Quick Tab:', url);
+            return createQuickTabContainer(url, title);
+        },
+
+        // Open a Quick Tab from the current selected tab
+        openQuickTabFromCurrent: function() {
+            console.log('QuickTabs: API call to open Quick Tab from current tab');
+            
+            try {
+                const currentTab = gBrowser.selectedTab;
+                if (!currentTab) {
+                    console.warn('QuickTabs: No current tab selected');
+                    return false;
+                }
+
+                const currentTabData = getTabData(currentTab);
+                
+                if (!currentTabData.url || currentTabData.url === 'about:blank') {
+                    console.warn('QuickTabs: Current tab has no valid URL');
+                    return false;
+                }
+
+                return createQuickTabContainer(currentTabData.url, currentTabData.title);
+            } catch (e) {
+                console.error('QuickTabs: Error in API call:', e);
+                return false;
+            }
+        },
+
+        // Trigger command with data (for use by other scripts)
+        triggerOpenQuickTab: function(url, title = '') {
+            if (!url) {
+                console.warn('QuickTabs: URL is required');
+                return;
+            }
+            
+            quickTabCommandData.url = url;
+            quickTabCommandData.title = title;
+            
+            // Trigger the command
+            const command = document.querySelector('#cmd_zenOpenQuickTab');
+            if (command) {
+                const event = new Event('command', { bubbles: true });
+                command.dispatchEvent(event);
+            } else {
+                console.warn('QuickTabs: cmd_zenOpenQuickTab command not found');
+            }
+        },
+
+        // Trigger command for current tab
+        triggerOpenQuickTabFromCurrent: function() {
+            const command = document.querySelector('#cmd_zenOpenQuickTabFromCurrent');
+            if (command) {
+                const event = new Event('command', { bubbles: true });
+                command.dispatchEvent(event);
+            } else {
+                console.warn('QuickTabs: cmd_zenOpenQuickTabFromCurrent command not found');
+            }
+        },
+
+        // Get info about current Quick Tab containers
+        getContainerInfo: function() {
+            return {
+                count: quickTabContainers.size,
+                maxContainers: MAX_CONTAINERS,
+                containers: Array.from(quickTabContainers.values()).map(info => ({
+                    id: info.id,
+                    url: info.url,
+                    title: info.title,
+                    minimized: info.minimized
+                }))
+            };
+        }
+    };
 
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {

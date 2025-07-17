@@ -68,7 +68,7 @@ All settings can be configured through Sine's preferences panel:
 
 ## Default Preferences
 
-```json
+```js
 extensions.quicktabs.theme = "dark"
 extensions.quicktabs.taskbar.trigger = "hover"
 extensions.quicktabs.context_menu.access_key = "T"

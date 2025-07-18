@@ -20,13 +20,11 @@ Quick Tabs provides a unique way to browse multiple websites simultaneously with
 
 ## Features
 
-- 🖱️ **Right-click Integration**: Open any link in a Quick Tab via context menu
-- 📱 **Floating Windows**: Draggable containers that stay on top
-- 🎨 **Dual Themes**: Dark and light theme support
-- 📋 **Smart Taskbar**: Collapsible taskbar to manage multiple Quick Tabs
-- ⚡ **Animations**: Smooth transitions and hover effects
-- 🔧 **Customizable**: Configurable sizes, limits, and behavior
-- 🎯 **Keyboard Shortcuts**: Quick access via customizable hotkeys
+- **Right-Click Menu Integration**:
+  - Open links in Quick Tabs directly from the context menu
+  - Convert existing tabs to Quick Tabs via right-click options
+- **Quick Search Integration (Coming Soon)**:
+  - Open the Quick Search result in a Quick Tab
 
 ## Installation
 

@@ -44,6 +44,13 @@
     "margin": "25px 0 8px 0"
   },
   {
+    "type": "checkbox",
+    "property": "extensions.quicktabs.closeSourceTab",
+    "label": "Close source tab when opening a Quick Tab",
+    "default": false,
+    "restart": true
+  },
+  {
     "type": "dropdown",
     "property": "extensions.quicktabs.taskbar.trigger",
     "label": "Taskbar trigger method",

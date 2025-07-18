@@ -51,7 +51,7 @@
     const TASKBAR_TRIGGER = getPref(QUICK_TABS_TASKBAR_TRIGGER_PREF, "hover");
     const ACCESS_KEY = getPref(QUICK_TABS_ACCESS_KEY_PREF, "T");
     const MAX_CONTAINERS = getPref(QUICK_TABS_MAX_CONTAINERS_PREF, 5);
-    const DEFAULT_WIDTH = getPref(QUICK_TABS_DEFAULT_WIDTH_PREF, 400);
+    const DEFAULT_WIDTH = getPref(QUICK_TABS_DEFAULT_WIDTH_PREF, 450);
     const DEFAULT_HEIGHT = getPref(QUICK_TABS_DEFAULT_HEIGHT_PREF, 500);
     const TASKBAR_MIN_WIDTH = getPref(QUICK_TABS_TASKBAR_MIN_WIDTH_PREF, 200);
     const ANIMATIONS_ENABLED = getPref(QUICK_TABS_ANIMATIONS_ENABLED_PREF, true);
@@ -289,6 +289,15 @@
 
             .quicktab-button:hover {
                 background-color: ${currentTheme.buttonHover};
+            }
+
+            .quicktab-button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            .quicktab-button:disabled:hover {
+                background-color: ${currentTheme.buttonBg};
             }
 
             /* Browser content area */
@@ -532,6 +541,21 @@
         titleElement.textContent = truncateText(displayTitle, 30);
         titleElement.title = displayTitle; // Full title on hover
 
+        const backButton = document.createElement('button');
+        backButton.className = 'quicktab-button';
+        backButton.innerHTML = '←';
+        backButton.title = 'Back';
+
+        const forwardButton = document.createElement('button');
+        forwardButton.className = 'quicktab-button';
+        forwardButton.innerHTML = '→';
+        forwardButton.title = 'Forward';
+
+        const openInTabButton = document.createElement('button');
+        openInTabButton.className = 'quicktab-button';
+        openInTabButton.innerHTML = '↗';
+        openInTabButton.title = 'Open in New Tab';
+
         const minimizeButton = document.createElement('button');
         minimizeButton.className = 'quicktab-button';
         minimizeButton.innerHTML = '−';
@@ -544,6 +568,9 @@
 
         header.appendChild(favicon);
         header.appendChild(titleElement);
+        header.appendChild(backButton);
+        header.appendChild(forwardButton);
+        header.appendChild(openInTabButton);
         header.appendChild(minimizeButton);
         header.appendChild(closeButton);
 
@@ -589,6 +616,9 @@
             title: initialTitle,
             favicon: favicon,
             titleElement: titleElement,
+            backButton: backButton,
+            forwardButton: forwardButton,
+            openInTabButton: openInTabButton,
             minimized: false
         };
 
@@ -624,6 +654,50 @@
                     containerInfo.url = currentUrl;
                     // Update favicon for new URL
                     favicon.src = getFaviconUrl(currentUrl);
+                }
+                
+                // Update back/forward button states
+                try {
+                    let canGoBack = false;
+                    let canGoForward = false;
+                    
+                    // Try multiple methods to check navigation availability
+                    if (browser.webNavigation) {
+                        try {
+                            canGoBack = browser.webNavigation.canGoBack;
+                            canGoForward = browser.webNavigation.canGoForward;
+                            console.log('QuickTabs: WebNavigation states - Back:', canGoBack, 'Forward:', canGoForward);
+                        } catch (webNavErr) {
+                            console.warn('QuickTabs: WebNavigation state check failed:', webNavErr);
+                            // Fallback: just enable buttons and let the navigation handle it
+                            canGoBack = true;
+                            canGoForward = true;
+                        }
+                    } else if (browser.contentDocument?.defaultView?.history) {
+                        try {
+                            const history = browser.contentDocument.defaultView.history;
+                            canGoBack = history.length > 1;
+                            canGoForward = false; // Can't easily check forward with history API
+                            console.log('QuickTabs: History API states - Back:', canGoBack, 'Forward:', canGoForward);
+                        } catch (histErr) {
+                            console.warn('QuickTabs: History API state check failed:', histErr);
+                            canGoBack = true;
+                            canGoForward = true;
+                        }
+                    } else {
+                        // Just enable buttons and let navigation methods handle availability
+                        canGoBack = true;
+                        canGoForward = true;
+                        console.log('QuickTabs: Using fallback - enabling both buttons');
+                    }
+                    
+                    backButton.disabled = !canGoBack;
+                    forwardButton.disabled = !canGoForward;
+                } catch (e) {
+                    console.warn('QuickTabs: Could not update navigation button states, enabling both:', e);
+                    // Fallback: enable both buttons
+                    backButton.disabled = false;
+                    forwardButton.disabled = false;
                 }
                 
                 // Try multiple methods to get the page title
@@ -693,6 +767,51 @@
             clearInterval(titleUpdateInterval);
         }, 10000); // Stop trying after 10 seconds
 
+        // Initial button state update
+        setTimeout(() => {
+            try {
+                let canGoBack = false;
+                let canGoForward = false;
+                
+                // Try multiple methods to check navigation availability
+                if (browser.webNavigation) {
+                    try {
+                        canGoBack = browser.webNavigation.canGoBack;
+                        canGoForward = browser.webNavigation.canGoForward;
+                        console.log('QuickTabs: Initial WebNavigation states - Back:', canGoBack, 'Forward:', canGoForward);
+                    } catch (webNavErr) {
+                        console.warn('QuickTabs: Initial WebNavigation state check failed:', webNavErr);
+                        canGoBack = false; // Initially no back history
+                        canGoForward = false; // Initially no forward history
+                    }
+                } else if (browser.contentDocument?.defaultView?.history) {
+                    try {
+                        const history = browser.contentDocument.defaultView.history;
+                        canGoBack = history.length > 1;
+                        canGoForward = false; // Can't easily check forward with history API
+                        console.log('QuickTabs: Initial History API states - Back:', canGoBack, 'Forward:', canGoForward);
+                    } catch (histErr) {
+                        console.warn('QuickTabs: Initial History API state check failed:', histErr);
+                        canGoBack = false;
+                        canGoForward = false;
+                    }
+                } else {
+                    // Initially, both should be disabled until user navigates
+                    canGoBack = false;
+                    canGoForward = false;
+                    console.log('QuickTabs: Initial fallback states - Back:', canGoBack, 'Forward:', canGoForward);
+                }
+                
+                backButton.disabled = !canGoBack;
+                forwardButton.disabled = !canGoForward;
+            } catch (e) {
+                console.warn('QuickTabs: Could not set initial navigation button states:', e);
+                // Safe fallback: disable both initially
+                backButton.disabled = true;
+                forwardButton.disabled = true;
+            }
+        }, 1000);
+
         // Show container
         console.log('QuickTabs: Showing container...');
         container.classList.add('visible');
@@ -704,10 +823,11 @@
 
     // Setup container event listeners
     function setupContainerEvents(containerInfo) {
-        const { element, titleElement, browser } = containerInfo;
+        const { element, titleElement, browser, backButton, forwardButton, openInTabButton } = containerInfo;
         const header = element.querySelector('.quicktab-header');
-        const minimizeButton = element.querySelector('.quicktab-button');
-        const closeButton = element.querySelectorAll('.quicktab-button')[1];
+        const allButtons = element.querySelectorAll('.quicktab-button');
+        const minimizeButton = allButtons[3]; // Back, Forward, OpenInTab, Minimize, Close
+        const closeButton = allButtons[4];
         const resizeHandle = element.querySelector('.quicktab-resize-handle');
 
         // Dragging functionality
@@ -715,7 +835,9 @@
         let dragStartX, dragStartY, elementStartX, elementStartY;
 
         header.addEventListener('mousedown', (e) => {
-            if (e.target === minimizeButton || e.target === closeButton) return;
+            if (e.target === backButton || e.target === forwardButton || 
+                e.target === openInTabButton || e.target === minimizeButton || 
+                e.target === closeButton) return;
             
             isDragging = true;
             dragStartX = e.clientX;
@@ -789,6 +911,125 @@
         });
 
         // Button events
+        backButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            let navigationSuccessful = false;
+            
+            // Method 1: Try webNavigation.goBack()
+            if (!navigationSuccessful && browser.webNavigation) {
+                try {
+                    console.log('QuickTabs: Attempting to go back using webNavigation...');
+                    browser.webNavigation.goBack();
+                    navigationSuccessful = true;
+                    console.log('QuickTabs: Navigated back using webNavigation');
+                } catch (err) {
+                    console.warn('QuickTabs: webNavigation.goBack() failed:', err);
+                }
+            }
+            
+            // Method 2: Try history.back()
+            if (!navigationSuccessful && browser.contentDocument?.defaultView?.history) {
+                try {
+                    console.log('QuickTabs: Attempting to go back using history.back()...');
+                    browser.contentDocument.defaultView.history.back();
+                    navigationSuccessful = true;
+                    console.log('QuickTabs: Navigated back using history.back()');
+                } catch (err) {
+                    console.warn('QuickTabs: history.back() failed:', err);
+                }
+            }
+            
+            // Method 3: Try browser.goBack()
+            if (!navigationSuccessful && typeof browser.goBack === 'function') {
+                try {
+                    console.log('QuickTabs: Attempting to go back using browser.goBack()...');
+                    browser.goBack();
+                    navigationSuccessful = true;
+                    console.log('QuickTabs: Navigated back using browser.goBack()');
+                } catch (err) {
+                    console.warn('QuickTabs: browser.goBack() failed:', err);
+                }
+            }
+            
+            if (!navigationSuccessful) {
+                console.log('QuickTabs: All back navigation methods failed');
+            }
+        });
+
+        forwardButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            let navigationSuccessful = false;
+            
+            // Method 1: Try webNavigation.goForward()
+            if (!navigationSuccessful && browser.webNavigation) {
+                try {
+                    console.log('QuickTabs: Attempting to go forward using webNavigation...');
+                    browser.webNavigation.goForward();
+                    navigationSuccessful = true;
+                    console.log('QuickTabs: Navigated forward using webNavigation');
+                } catch (err) {
+                    console.warn('QuickTabs: webNavigation.goForward() failed:', err);
+                }
+            }
+            
+            // Method 2: Try history.forward()
+            if (!navigationSuccessful && browser.contentDocument?.defaultView?.history) {
+                try {
+                    console.log('QuickTabs: Attempting to go forward using history.forward()...');
+                    browser.contentDocument.defaultView.history.forward();
+                    navigationSuccessful = true;
+                    console.log('QuickTabs: Navigated forward using history.forward()');
+                } catch (err) {
+                    console.warn('QuickTabs: history.forward() failed:', err);
+                }
+            }
+            
+            // Method 3: Try browser.goForward()
+            if (!navigationSuccessful && typeof browser.goForward === 'function') {
+                try {
+                    console.log('QuickTabs: Attempting to go forward using browser.goForward()...');
+                    browser.goForward();
+                    navigationSuccessful = true;
+                    console.log('QuickTabs: Navigated forward using browser.goForward()');
+                } catch (err) {
+                    console.warn('QuickTabs: browser.goForward() failed:', err);
+                }
+            }
+            
+            if (!navigationSuccessful) {
+                console.log('QuickTabs: All forward navigation methods failed');
+            }
+        });
+
+        openInTabButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            try {
+                const currentUrl = containerInfo.url || 
+                    browser.currentURI?.spec || 
+                    browser.contentDocument?.location?.href;
+                
+                if (currentUrl && !currentUrl.startsWith('about:')) {
+                    // Create proper principal for the new tab
+                    const uri = Services.io.newURI(currentUrl);
+                    const principal = Services.scriptSecurityManager.createContentPrincipal(uri, {});
+                    
+                    gBrowser.addTab(currentUrl, {
+                        triggeringPrincipal: principal,
+                        allowInheritPrincipal: false
+                    });
+                    console.log('QuickTabs: Opened URL in new tab:', currentUrl);
+                    
+                    // Close the Quick Tab container after opening in new tab
+                    closeContainer(containerInfo);
+                    console.log('QuickTabs: Closed Quick Tab container after opening in new tab');
+                } else {
+                    console.warn('QuickTabs: No valid URL to open in new tab');
+                }
+            } catch (err) {
+                console.error('QuickTabs: Error opening in new tab:', err);
+            }
+        });
+
         minimizeButton.addEventListener('click', (e) => {
             e.stopPropagation();
             minimizeContainer(containerInfo);

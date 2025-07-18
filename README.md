@@ -43,7 +43,7 @@ OR
 
 1. Download `Quick_Tabs.uc.js` (Make sure [Fx-Autoconfig](https://github.com/MrOtherGuy/fx-autoconfig/) is installed)
 2. Place in your Zen profile's `chrome/JS/` directory
-3. Add `preferences.json` to configure settings via Sine or manually
+3. Add preferences from `preferences.json` to your `about:config` manually
 4. Clear Startup Cache and restart browser
 
 ## Usage

@@ -37,6 +37,10 @@ Quick Tabs provides a unique way to browse multiple websites simultaneously with
 3. Click **Install**
 4. **Important**: Clear Startup Cache in browser settings for changes to take effect
 
+OR
+
+1. Paste the github repo link into Sine's custom JS section.
+
 ### Manual Installation
 
 1. Download `Quick_Tabs.uc.js` (Make sure [Fx-Autoconfig](https://github.com/MrOtherGuy/fx-autoconfig/) is installed)

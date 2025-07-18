@@ -70,7 +70,7 @@ All settings can be configured through Sine's preferences panel:
 
 ```js
 extensions.quicktabs.theme = "dark"
-extensions.quicktabs.taskbar.trigger = "hover"
+extensions.quicktabs.taskbar.trigger = "hover" // or "click"
 extensions.quicktabs.context_menu.access_key = "T"
 extensions.quicktabs.maxContainers = 5
 extensions.quicktabs.defaultWidth = 400
@@ -78,6 +78,120 @@ extensions.quicktabs.defaultHeight = 500
 extensions.quicktabs.taskbar.minWidth = 200
 extensions.quicktabs.animations.enabled = true
 ```
+
+## API Reference
+
+Quick Tabs exposes a global `window.QuickTabs` API for programmatic access and integration with other scripts.
+
+### Methods
+
+#### `QuickTabs.openQuickTab(url, title?)`
+Creates and opens a new Quick Tab container with the specified URL.
+
+**Parameters:**
+- `url` (string, required) - The URL to load in the Quick Tab
+- `title` (string, optional) - Custom title for the container (defaults to auto-generated from URL)
+
+**Returns:** Container object if successful, `false` if failed
+
+**Example:**
+```javascript
+// Open a Quick Tab with auto-generated title
+QuickTabs.openQuickTab('https://github.com');
+
+// Open with custom title
+QuickTabs.openQuickTab('https://github.com', 'GitHub');
+```
+
+#### `QuickTabs.openQuickTabFromCurrent()`
+Creates a Quick Tab from the currently active browser tab.
+
+**Returns:** Container object if successful, `false` if failed
+
+**Example:**
+```javascript
+// Clone current tab into a Quick Tab
+QuickTabs.openQuickTabFromCurrent();
+```
+
+#### `QuickTabs.triggerOpenQuickTab(url, title?)`
+Triggers the Quick Tab command through the browser's command system (alternative method).
+
+**Parameters:**
+- `url` (string, required) - The URL to load
+- `title` (string, optional) - Custom title for the container
+
+**Example:**
+```javascript
+QuickTabs.triggerOpenQuickTab('https://example.com', 'Example Site');
+```
+
+#### `QuickTabs.triggerOpenQuickTabFromCurrent()`
+Triggers the "open from current tab" command through the browser's command system.
+
+**Example:**
+```javascript
+QuickTabs.triggerOpenQuickTabFromCurrent();
+```
+
+#### `QuickTabs.getContainerInfo()`
+Returns information about all active Quick Tab containers.
+
+**Returns:** Object with container statistics and details
+```javascript
+{
+  count: 3,              // Current number of open containers
+  maxContainers: 5,      // Maximum allowed containers
+  containers: [          // Array of container details
+    {
+      id: 1,
+      url: "https://github.com",
+      title: "GitHub",
+      minimized: false
+    },
+    // ... more containers
+  ]
+}
+```
+
+### Command System
+
+Quick Tabs also exposes browser commands that can be triggered through Zen Browser's command system or other extensions.
+
+#### Available Commands
+
+##### `cmd_zenOpenQuickTab`
+Opens a Quick Tab using data from `quickTabCommandData` (set via `triggerOpenQuickTab`).
+
+**Usage:**
+```javascript
+// Set data first
+QuickTabs.triggerOpenQuickTab('https://example.com', 'Example');
+
+// Or trigger directly
+const command = document.querySelector('#cmd_zenOpenQuickTab');
+if (command) {
+    const event = new Event('command', { bubbles: true });
+    command.dispatchEvent(event);
+}
+```
+
+##### `cmd_zenOpenQuickTabFromCurrent`
+Opens a Quick Tab from the currently active browser tab.
+
+**Usage:**
+```javascript
+// Trigger via API (recommended)
+QuickTabs.triggerOpenQuickTabFromCurrent();
+
+// Or trigger directly
+const command = document.querySelector('#cmd_zenOpenQuickTabFromCurrent');
+if (command) {
+    const event = new Event('command', { bubbles: true });
+    command.dispatchEvent(event);
+}
+```
+
 
 ## Contributing
 

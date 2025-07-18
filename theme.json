@@ -5,7 +5,7 @@
     "homepage": "https://github.com/Darsh-A/Quick-Tab",
     "preferences": "https://raw.githubusercontent.com/Darsh-A/Quick-Tab/refs/heads/main/preferences.json",
     "image": "https://github.com/Darsh-A/Quick-Tab/blob/main/image.png?raw=true",
-    "js": true,
+    "js": "https://raw.githubusercontent.com/Darsh-A/Quick-Tabs/refs/heads/main/Quick_Tabs.uc.js",
     "readme": "https://raw.githubusercontent.com/Darsh-A/Quick-Tab/refs/heads/main/README.md",
     "author": "Darsh A",
     "version": "1.0.0",

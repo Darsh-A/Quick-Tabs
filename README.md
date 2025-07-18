@@ -2,6 +2,12 @@
 
 A user script that allows you to open links in floating tab containers directly within the Zen browser.
 
+
+
+https://github.com/user-attachments/assets/fdbda5ac-aa4b-448e-b1df-56f4f1a79f0b
+
+
+
 ## Purpose
 
 Quick Tabs provides a unique way to browse multiple websites simultaneously without cluttering your main tab bar. Perfect for:
@@ -30,6 +36,10 @@ Quick Tabs provides a unique way to browse multiple websites simultaneously with
 2. Search for "Quick Tabs" or import this mod via custom JS
 3. Click **Install**
 4. **Important**: Clear Startup Cache in browser settings for changes to take effect
+
+OR
+
+1. Paste the github repo link into Sine's custom JS section.
 
 ### Manual Installation
 

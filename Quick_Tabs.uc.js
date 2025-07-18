@@ -48,7 +48,7 @@
 
     // Load configuration
     const THEME = getPref(QUICK_TABS_THEME_PREF, "dark");
-    const TASKBAR_TRIGGER = getPref(QUICK_TABS_TASKBAR_TRIGGER_PREF, "hover");
+    const TASKBAR_TRIGGER = getPref(QUICK_TABS_TASKBAR_TRIGGER_PREF, "click");
     const ACCESS_KEY = getPref(QUICK_TABS_ACCESS_KEY_PREF, "T");
     const MAX_CONTAINERS = getPref(QUICK_TABS_MAX_CONTAINERS_PREF, 5);
     const DEFAULT_WIDTH = getPref(QUICK_TABS_DEFAULT_WIDTH_PREF, 450);
@@ -622,6 +622,97 @@
             minimized: false
         };
 
+
+
+        // Function to update title and URL from various sources
+        const updateContainerTitle = () => {
+            try {
+                let pageTitle = null;
+                let currentUrl = null;
+                
+                // Get current URL using multiple methods
+                try {
+                    if (browser.currentURI?.spec && !browser.currentURI.spec.startsWith('about:')) {
+                        currentUrl = browser.currentURI.spec;
+                    } else if (browser.contentDocument?.location?.href && !browser.contentDocument.location.href.startsWith('about:')) {
+                        currentUrl = browser.contentDocument.location.href;
+                    } else if (browser.contentWindow?.location?.href && !browser.contentWindow.location.href.startsWith('about:')) {
+                        currentUrl = browser.contentWindow.location.href;
+                    } else if (browser.documentURI?.spec && !browser.documentURI.spec.startsWith('about:')) {
+                        currentUrl = browser.documentURI.spec;
+                    }
+                } catch (urlErr) {
+                    console.warn('QuickTabs: Error getting current URL:', urlErr);
+                }
+                
+                // Always use detected URL or fall back to stored URL
+                currentUrl = currentUrl || containerInfo.url;
+                
+                // Update container if URL changed
+                if (currentUrl && currentUrl !== containerInfo.url) {
+                    containerInfo.url = currentUrl;
+                    favicon.src = getFaviconUrl(currentUrl);
+                }
+                
+                // Update back/forward button states
+                try {
+                    let canGoBack = false;
+                    let canGoForward = false;
+                    
+                    if (browser.webNavigation) {
+                        try {
+                            canGoBack = browser.webNavigation.canGoBack;
+                            canGoForward = browser.webNavigation.canGoForward;
+                        } catch (webNavErr) {
+                            canGoBack = true;
+                            canGoForward = true;
+                        }
+                    } else {
+                        canGoBack = true;
+                        canGoForward = true;
+                    }
+                    
+                    backButton.disabled = !canGoBack;
+                    forwardButton.disabled = !canGoForward;
+                } catch (e) {
+                    backButton.disabled = false;
+                    forwardButton.disabled = false;
+                }
+                
+                // Try multiple methods to get the page title
+                try {
+                    if (browser.contentDocument?.title && browser.contentDocument.title.trim() !== '') {
+                        pageTitle = browser.contentDocument.title;
+                    } else if (browser.contentTitle && browser.contentTitle.trim() !== '') {
+                        pageTitle = browser.contentTitle;
+                    } else if (browser.contentWindow?.document?.title && browser.contentWindow.document.title.trim() !== '') {
+                        pageTitle = browser.contentWindow.document.title;
+                    }
+                } catch (titleErr) {
+                    console.warn('QuickTabs: Error getting page title:', titleErr);
+                }
+                
+                // Process and update title
+                let finalTitle = null;
+                if (pageTitle && pageTitle.trim() !== '' && pageTitle !== 'Loading...' && 
+                    pageTitle !== 'New Tab' && !pageTitle.startsWith('http') && !pageTitle.startsWith('about:')) {
+                    finalTitle = pageTitle;
+                } else {
+                    finalTitle = getTabTitle(currentUrl);
+                }
+                
+                // Update UI if title changed
+                if (finalTitle && finalTitle !== containerInfo.title) {
+                    titleElement.textContent = truncateText(finalTitle, 30);
+                    titleElement.title = finalTitle;
+                    containerInfo.title = finalTitle;
+                    updateTaskbar();
+                }
+            } catch (e) {
+                console.error('QuickTabs: Error updating title:', e);
+            }
+        };
+
         quickTabContainers.set(containerId, containerInfo);
 
         // Event listeners
@@ -631,141 +722,109 @@
         console.log('QuickTabs: Loading content in browser...');
         loadContentInBrowser(browser, url);
 
-        // Function to update title and URL from various sources
-        const updateContainerTitle = () => {
-            try {
-                let pageTitle = null;
-                let currentUrl = null;
-                
-                // Get current URL from browser
-                try {
-                    if (browser.currentURI?.spec) {
-                        currentUrl = browser.currentURI.spec;
-                    } else if (browser.contentDocument?.location?.href) {
-                        currentUrl = browser.contentDocument.location.href;
-                    }
-                } catch (e) {
-                    console.warn('QuickTabs: Could not get current URL:', e);
-                }
-                
-                // Update URL in container info if it changed
-                if (currentUrl && currentUrl !== containerInfo.url && !currentUrl.startsWith('about:')) {
-                    console.log('QuickTabs: URL changed from', containerInfo.url, 'to', currentUrl);
-                    containerInfo.url = currentUrl;
-                    // Update favicon for new URL
-                    favicon.src = getFaviconUrl(currentUrl);
-                }
-                
-                // Update back/forward button states
-                try {
-                    let canGoBack = false;
-                    let canGoForward = false;
-                    
-                    // Try multiple methods to check navigation availability
-                    if (browser.webNavigation) {
-                        try {
-                            canGoBack = browser.webNavigation.canGoBack;
-                            canGoForward = browser.webNavigation.canGoForward;
-                            console.log('QuickTabs: WebNavigation states - Back:', canGoBack, 'Forward:', canGoForward);
-                        } catch (webNavErr) {
-                            console.warn('QuickTabs: WebNavigation state check failed:', webNavErr);
-                            // Fallback: just enable buttons and let the navigation handle it
-                            canGoBack = true;
-                            canGoForward = true;
-                        }
-                    } else if (browser.contentDocument?.defaultView?.history) {
-                        try {
-                            const history = browser.contentDocument.defaultView.history;
-                            canGoBack = history.length > 1;
-                            canGoForward = false; // Can't easily check forward with history API
-                            console.log('QuickTabs: History API states - Back:', canGoBack, 'Forward:', canGoForward);
-                        } catch (histErr) {
-                            console.warn('QuickTabs: History API state check failed:', histErr);
-                            canGoBack = true;
-                            canGoForward = true;
-                        }
-                    } else {
-                        // Just enable buttons and let navigation methods handle availability
-                        canGoBack = true;
-                        canGoForward = true;
-                        console.log('QuickTabs: Using fallback - enabling both buttons');
-                    }
-                    
-                    backButton.disabled = !canGoBack;
-                    forwardButton.disabled = !canGoForward;
-                } catch (e) {
-                    console.warn('QuickTabs: Could not update navigation button states, enabling both:', e);
-                    // Fallback: enable both buttons
-                    backButton.disabled = false;
-                    forwardButton.disabled = false;
-                }
-                
-                // Try multiple methods to get the page title
-                if (browser.contentTitle) {
-                    pageTitle = browser.contentTitle;
-                } else if (browser.contentDocument?.title) {
-                    pageTitle = browser.contentDocument.title;
-                }
-                
-                // If we got a valid page title, use it
-                if (pageTitle && pageTitle.trim() !== '' && pageTitle !== 'Loading...' && 
-                    pageTitle !== 'New Tab' && !pageTitle.startsWith('http')) {
-                    console.log('QuickTabs: Page title updated to:', pageTitle);
-                    titleElement.textContent = truncateText(pageTitle, 30); // Slightly longer for header
-                    titleElement.title = pageTitle; // Full title on hover
-                    containerInfo.title = pageTitle;
-                    updateTaskbar();
-                } else {
-                    // Use URL-based title as fallback
-                    const currentUrlForTitle = currentUrl || containerInfo.url;
-                    const fallbackTitle = getTabTitle(currentUrlForTitle);
-                    if (fallbackTitle !== containerInfo.title) {
-                        console.log('QuickTabs: Using fallback title:', fallbackTitle);
-                        titleElement.textContent = truncateText(fallbackTitle, 30);
-                        titleElement.title = fallbackTitle; // Full title on hover
-                        containerInfo.title = fallbackTitle;
-                        updateTaskbar();
-                    }
-                }
-            } catch (e) {
-                console.error('QuickTabs: Error updating title:', e);
-            }
-        };
-
         // Update page title when DOM title changes
-        browser.addEventListener('DOMTitleChanged', updateContainerTitle);
+        browser.addEventListener('DOMTitleChanged', () => {
+            setTimeout(updateContainerTitle, 100);
+        });
 
         // Update title on page load
         browser.addEventListener('load', () => {
-            setTimeout(updateContainerTitle, 500);
-            setTimeout(updateContainerTitle, 2000); // Try again after 2 seconds
+            setTimeout(updateContainerTitle, 200);
+            setTimeout(updateContainerTitle, 1000);
+            setTimeout(updateContainerTitle, 3000);
         });
 
         // Update title when page is shown (back/forward navigation)
         browser.addEventListener('pageshow', () => {
             setTimeout(updateContainerTitle, 100);
+            setTimeout(updateContainerTitle, 500);
         });
 
         // Update title when DOM content is loaded
         browser.addEventListener('DOMContentLoaded', () => {
             setTimeout(updateContainerTitle, 100);
+            setTimeout(updateContainerTitle, 500);
         });
 
         // Listen for location changes (URL changes)
         browser.addEventListener('locationchange', () => {
-            console.log('QuickTabs: Location changed, updating title');
             setTimeout(updateContainerTitle, 100);
-            setTimeout(updateContainerTitle, 1000); // Try again after 1 second
+            setTimeout(updateContainerTitle, 500);
+            setTimeout(updateContainerTitle, 1500);
         });
 
-        // Also try to update title periodically for the first 10 seconds
-        const titleUpdateInterval = setInterval(() => {
-            updateContainerTitle();
-        }, 1000);
+        // Additional event for when the document finishes loading
+        browser.addEventListener('loadend', () => {
+            setTimeout(updateContainerTitle, 200);
+        });
+
+        // Listen for progress events to catch dynamic title changes
+        browser.addEventListener('progress', () => {
+            setTimeout(updateContainerTitle, 100);
+        });
+
+        // Additional navigation tracking events
+        browser.addEventListener('beforeunload', () => {
+            setTimeout(updateContainerTitle, 50);
+        });
+
+        browser.addEventListener('unload', () => {
+            setTimeout(updateContainerTitle, 50);
+        });
+
+        browser.addEventListener('pagehide', () => {
+            setTimeout(updateContainerTitle, 50);
+        });
+
+        browser.addEventListener('focus', () => {
+            setTimeout(updateContainerTitle, 100);
+        });
+
+        // Listen for any attribute changes on the browser element
+        try {
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'attributes') {
+                        setTimeout(updateContainerTitle, 100);
+                    }
+                });
+            });
+
+            observer.observe(browser, {
+                attributes: true,
+                attributeFilter: ['src', 'currentURI', 'title']
+            });
+
+            containerInfo.mutationObserver = observer;
+        } catch (e) {
+            console.warn('QuickTabs: Could not create mutation observer:', e);
+        }
+
+        // Continuous monitoring
+        let lastKnownUrl = containerInfo.url;
         
-        setTimeout(() => {
-            clearInterval(titleUpdateInterval);
-        }, 10000); // Stop trying after 10 seconds
+        const monitoringInterval = setInterval(() => {
+            updateContainerTitle();
+            
+            // Extra check for URL changes that might have been missed
+            try {
+                let detectedUrl = null;
+                if (browser.currentURI?.spec && !browser.currentURI.spec.startsWith('about:')) {
+                    detectedUrl = browser.currentURI.spec;
+                } else if (browser.contentDocument?.location?.href && !browser.contentDocument.location.href.startsWith('about:')) {
+                    detectedUrl = browser.contentDocument.location.href;
+                }
+                
+                if (detectedUrl && detectedUrl !== lastKnownUrl) {
+                    lastKnownUrl = detectedUrl;
+                    setTimeout(updateContainerTitle, 100);
+                }
+            } catch (e) {
+                console.warn('QuickTabs: Error in polling check:', e);
+            }
+        }, 2000);
+        
+        containerInfo.monitoringInterval = monitoringInterval;
 
         // Initial button state update
         setTimeout(() => {
@@ -774,33 +833,27 @@
                 let canGoForward = false;
                 
                 // Try multiple methods to check navigation availability
-                if (browser.webNavigation) {
-                    try {
-                        canGoBack = browser.webNavigation.canGoBack;
-                        canGoForward = browser.webNavigation.canGoForward;
-                        console.log('QuickTabs: Initial WebNavigation states - Back:', canGoBack, 'Forward:', canGoForward);
-                    } catch (webNavErr) {
-                        console.warn('QuickTabs: Initial WebNavigation state check failed:', webNavErr);
-                        canGoBack = false; // Initially no back history
-                        canGoForward = false; // Initially no forward history
-                    }
-                } else if (browser.contentDocument?.defaultView?.history) {
-                    try {
-                        const history = browser.contentDocument.defaultView.history;
-                        canGoBack = history.length > 1;
-                        canGoForward = false; // Can't easily check forward with history API
-                        console.log('QuickTabs: Initial History API states - Back:', canGoBack, 'Forward:', canGoForward);
-                    } catch (histErr) {
-                        console.warn('QuickTabs: Initial History API state check failed:', histErr);
+                                    if (browser.webNavigation) {
+                        try {
+                            canGoBack = browser.webNavigation.canGoBack;
+                            canGoForward = browser.webNavigation.canGoForward;
+                        } catch (webNavErr) {
+                            canGoBack = false;
+                            canGoForward = false;
+                        }
+                    } else if (browser.contentDocument?.defaultView?.history) {
+                        try {
+                            const history = browser.contentDocument.defaultView.history;
+                            canGoBack = history.length > 1;
+                            canGoForward = false;
+                        } catch (histErr) {
+                            canGoBack = false;
+                            canGoForward = false;
+                        }
+                    } else {
                         canGoBack = false;
                         canGoForward = false;
                     }
-                } else {
-                    // Initially, both should be disabled until user navigates
-                    canGoBack = false;
-                    canGoForward = false;
-                    console.log('QuickTabs: Initial fallback states - Back:', canGoBack, 'Forward:', canGoForward);
-                }
                 
                 backButton.disabled = !canGoBack;
                 forwardButton.disabled = !canGoForward;
@@ -918,10 +971,8 @@
             // Method 1: Try webNavigation.goBack()
             if (!navigationSuccessful && browser.webNavigation) {
                 try {
-                    console.log('QuickTabs: Attempting to go back using webNavigation...');
                     browser.webNavigation.goBack();
                     navigationSuccessful = true;
-                    console.log('QuickTabs: Navigated back using webNavigation');
                 } catch (err) {
                     console.warn('QuickTabs: webNavigation.goBack() failed:', err);
                 }
@@ -930,10 +981,8 @@
             // Method 2: Try history.back()
             if (!navigationSuccessful && browser.contentDocument?.defaultView?.history) {
                 try {
-                    console.log('QuickTabs: Attempting to go back using history.back()...');
                     browser.contentDocument.defaultView.history.back();
                     navigationSuccessful = true;
-                    console.log('QuickTabs: Navigated back using history.back()');
                 } catch (err) {
                     console.warn('QuickTabs: history.back() failed:', err);
                 }
@@ -942,17 +991,11 @@
             // Method 3: Try browser.goBack()
             if (!navigationSuccessful && typeof browser.goBack === 'function') {
                 try {
-                    console.log('QuickTabs: Attempting to go back using browser.goBack()...');
                     browser.goBack();
                     navigationSuccessful = true;
-                    console.log('QuickTabs: Navigated back using browser.goBack()');
                 } catch (err) {
                     console.warn('QuickTabs: browser.goBack() failed:', err);
                 }
-            }
-            
-            if (!navigationSuccessful) {
-                console.log('QuickTabs: All back navigation methods failed');
             }
         });
 
@@ -963,10 +1006,8 @@
             // Method 1: Try webNavigation.goForward()
             if (!navigationSuccessful && browser.webNavigation) {
                 try {
-                    console.log('QuickTabs: Attempting to go forward using webNavigation...');
                     browser.webNavigation.goForward();
                     navigationSuccessful = true;
-                    console.log('QuickTabs: Navigated forward using webNavigation');
                 } catch (err) {
                     console.warn('QuickTabs: webNavigation.goForward() failed:', err);
                 }
@@ -975,10 +1016,8 @@
             // Method 2: Try history.forward()
             if (!navigationSuccessful && browser.contentDocument?.defaultView?.history) {
                 try {
-                    console.log('QuickTabs: Attempting to go forward using history.forward()...');
                     browser.contentDocument.defaultView.history.forward();
                     navigationSuccessful = true;
-                    console.log('QuickTabs: Navigated forward using history.forward()');
                 } catch (err) {
                     console.warn('QuickTabs: history.forward() failed:', err);
                 }
@@ -987,26 +1026,32 @@
             // Method 3: Try browser.goForward()
             if (!navigationSuccessful && typeof browser.goForward === 'function') {
                 try {
-                    console.log('QuickTabs: Attempting to go forward using browser.goForward()...');
                     browser.goForward();
                     navigationSuccessful = true;
-                    console.log('QuickTabs: Navigated forward using browser.goForward()');
                 } catch (err) {
                     console.warn('QuickTabs: browser.goForward() failed:', err);
                 }
-            }
-            
-            if (!navigationSuccessful) {
-                console.log('QuickTabs: All forward navigation methods failed');
             }
         });
 
         openInTabButton.addEventListener('click', (e) => {
             e.stopPropagation();
             try {
-                const currentUrl = containerInfo.url || 
-                    browser.currentURI?.spec || 
-                    browser.contentDocument?.location?.href;
+                // Get the actual current URL from the browser using multiple methods
+                let currentUrl = containerInfo.url; // Start with stored URL as fallback
+                
+                // Try to get the current URL from the browser
+                try {
+                    if (browser.currentURI?.spec && !browser.currentURI.spec.startsWith('about:')) {
+                        currentUrl = browser.currentURI.spec;
+                    } else if (browser.contentDocument?.location?.href && !browser.contentDocument.location.href.startsWith('about:')) {
+                        currentUrl = browser.contentDocument.location.href;
+                    } else if (browser.contentWindow?.location?.href && !browser.contentWindow.location.href.startsWith('about:')) {
+                        currentUrl = browser.contentWindow.location.href;
+                    }
+                } catch (urlErr) {
+                    console.warn('QuickTabs: Could not get current URL, using stored URL:', urlErr);
+                }
                 
                 if (currentUrl && !currentUrl.startsWith('about:')) {
                     // Create proper principal for the new tab
@@ -1017,13 +1062,9 @@
                         triggeringPrincipal: principal,
                         allowInheritPrincipal: false
                     });
-                    console.log('QuickTabs: Opened URL in new tab:', currentUrl);
-                    
-                    // Close the Quick Tab container after opening in new tab
                     closeContainer(containerInfo);
-                    console.log('QuickTabs: Closed Quick Tab container after opening in new tab');
                 } else {
-                    console.warn('QuickTabs: No valid URL to open in new tab');
+                    console.warn('QuickTabs: No valid URL to open in new tab, current URL:', currentUrl);
                 }
             } catch (err) {
                 console.error('QuickTabs: Error opening in new tab:', err);
@@ -1066,6 +1107,16 @@
         const container = containerInfo.element;
         container.style.opacity = '0';
         container.style.transform = 'scale(0.8)';
+        
+        // Clean up monitoring interval
+        if (containerInfo.monitoringInterval) {
+            clearInterval(containerInfo.monitoringInterval);
+        }
+        
+        // Clean up mutation observer
+        if (containerInfo.mutationObserver) {
+            containerInfo.mutationObserver.disconnect();
+        }
         
         setTimeout(() => {
             container.remove();
@@ -1152,7 +1203,6 @@
 
     // Update taskbar contents
     function updateTaskbar() {
-        console.log('QuickTabs: Updating taskbar with', quickTabContainers.size, 'containers');
         const taskbar = createTaskbar();
         const itemsContainer = taskbar.querySelector('.quicktabs-taskbar-items');
         
@@ -1160,12 +1210,10 @@
         itemsContainer.innerHTML = '';
 
         if (quickTabContainers.size === 0) {
-            console.log('QuickTabs: No containers, hiding taskbar');
             taskbar.style.display = 'none';
             return;
         }
 
-        console.log('QuickTabs: Showing taskbar with containers');
         taskbar.style.display = 'block';
 
         // Add items for each container

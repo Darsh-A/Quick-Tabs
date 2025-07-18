@@ -2,11 +2,11 @@
     "id": "quick-tabs",
     "name": "Quick Tabs",
     "description": "A Quick and easy way to browse tabs without leaving focus of whats important.",
-    "homepage": "https://github.com/Darsh-A/Quick-Tab",
-    "preferences": "https://raw.githubusercontent.com/Darsh-A/Quick-Tab/refs/heads/main/preferences.json",
-    "image": "https://github.com/Darsh-A/Quick-Tab/blob/main/image.png?raw=true",
+    "homepage": "https://github.com/Darsh-A/Quick-Tabs",
+    "preferences": "https://raw.githubusercontent.com/Darsh-A/Quick-Tabs/refs/heads/main/preferences.json",
+    "image": "https://github.com/Darsh-A/Quick-Tabs/blob/main/image.png?raw=true",
     "js": true,
-    "readme": "https://raw.githubusercontent.com/Darsh-A/Quick-Tab/refs/heads/main/README.md",
+    "readme": "https://raw.githubusercontent.com/Darsh-A/Quick-Tabs/refs/heads/main/README.md",
     "author": "Darsh A",
     "version": "1.0.0",
     "tags": [
@@ -19,6 +19,6 @@
         "Darsh A"
     ],
     "createdAt": "2025-07-17",
-    "updatedAt": "2025-07-17",
+    "updatedAt": "2025-07-18",
     "fork": ["zen"]
 }

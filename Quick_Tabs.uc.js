@@ -48,7 +48,7 @@
 
     // Load configuration
     const THEME = getPref(QUICK_TABS_THEME_PREF, "dark");
-    const TASKBAR_TRIGGER = getPref(QUICK_TABS_TASKBAR_TRIGGER_PREF, "click");
+    const TASKBAR_TRIGGER = getPref(QUICK_TABS_TASKBAR_TRIGGER_PREF, "hover"); // "click" or "hover"
     const ACCESS_KEY = getPref(QUICK_TABS_ACCESS_KEY_PREF, "T");
     const MAX_CONTAINERS = getPref(QUICK_TABS_MAX_CONTAINERS_PREF, 5);
     const DEFAULT_WIDTH = getPref(QUICK_TABS_DEFAULT_WIDTH_PREF, 450);
@@ -242,6 +242,7 @@
             .quicktab-header {
                 display: flex;
                 align-items: center;
+                justify-content: space-between;
                 padding: 8px 12px;
                 background-color: ${currentTheme.headerBg};
                 border-bottom: 1px solid ${currentTheme.containerBorder};
@@ -249,7 +250,7 @@
                 cursor: grab;
                 user-select: none;
                 border-radius: 8px 8px 0 0;
-                gap: 8px;
+                min-height: 40px;
             }
 
             .quicktab-header:active {
@@ -284,7 +285,10 @@
                 align-items: center;
                 justify-content: center;
                 font-size: 16px;
+                line-height: 1;
                 flex-shrink: 0;
+                text-align: center;
+                vertical-align: middle;
             }
 
             .quicktab-button:hover {
@@ -298,6 +302,21 @@
 
             .quicktab-button:disabled:hover {
                 background-color: ${currentTheme.buttonBg};
+            }
+
+            .quicktab-title-section {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex: 1;
+                min-width: 0;
+            }
+
+            .quicktab-button-group {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                flex-shrink: 0;
             }
 
             /* Browser content area */
@@ -566,13 +585,23 @@
         closeButton.innerHTML = '×';
         closeButton.title = 'Close';
 
-        header.appendChild(favicon);
-        header.appendChild(titleElement);
-        header.appendChild(backButton);
-        header.appendChild(forwardButton);
-        header.appendChild(openInTabButton);
-        header.appendChild(minimizeButton);
-        header.appendChild(closeButton);
+        // Create title section container
+        const titleSection = document.createElement('div');
+        titleSection.className = 'quicktab-title-section';
+        titleSection.appendChild(favicon);
+        titleSection.appendChild(titleElement);
+
+        // Create button group container
+        const buttonGroup = document.createElement('div');
+        buttonGroup.className = 'quicktab-button-group';
+        buttonGroup.appendChild(backButton);
+        buttonGroup.appendChild(forwardButton);
+        buttonGroup.appendChild(openInTabButton);
+        buttonGroup.appendChild(minimizeButton);
+        buttonGroup.appendChild(closeButton);
+
+        header.appendChild(titleSection);
+        header.appendChild(buttonGroup);
 
         // Create browser content
         console.log('QuickTabs: Creating browser element...');
@@ -594,13 +623,12 @@
         container.appendChild(browser);
         container.appendChild(resizeHandle);
 
-        // Set initial position (centered with cascade)
-        const offset = (containerId - 1) * 30;
+        // Set initial position (centered)
         const centerX = (window.innerWidth - DEFAULT_WIDTH) / 2;
         const centerY = (window.innerHeight - DEFAULT_HEIGHT) / 2;
-        container.style.left = `${centerX + offset}px`;
-        container.style.top = `${centerY + offset}px`;
-        console.log('QuickTabs: Positioning container at center with offset:', {centerX, centerY, offset});
+        container.style.left = `${centerX}px`;
+        container.style.top = `${centerY}px`;
+        console.log('QuickTabs: Positioning container at center:', {centerX, centerY});
 
         document.body.appendChild(container);
 
@@ -833,7 +861,7 @@
                 let canGoForward = false;
                 
                 // Try multiple methods to check navigation availability
-                                    if (browser.webNavigation) {
+                    if (browser.webNavigation) {
                         try {
                             canGoBack = browser.webNavigation.canGoBack;
                             canGoForward = browser.webNavigation.canGoForward;
@@ -1416,19 +1444,10 @@
         console.log('  Taskbar Min Width:', TASKBAR_MIN_WIDTH);
         console.log('  Animations Enabled:', ANIMATIONS_ENABLED);
         
-        // Inject CSS
-        console.log('QuickTabs: Injecting CSS...');
         injectCSS();
-        
-        // Setup commands
-        console.log('QuickTabs: Setting up commands...');
         setupCommands();
-        
-        // Add context menu item
-        console.log('QuickTabs: Adding context menu item...');
         addContextMenuItem();
         
-        console.log('QuickTabs: Initialized successfully');
     }
 
     // Command setup and handling
@@ -1612,7 +1631,6 @@
         }
     };
 
-    // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {

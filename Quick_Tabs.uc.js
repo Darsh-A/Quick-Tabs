@@ -1628,7 +1628,7 @@
     }
 
     // Command Palette Integration
-    function setupCommandPaletteIntegration() {
+    function setupCommandPaletteIntegration(retryCount = 0) {
         if (window.ZenCommandPalette) {
             console.log('QuickTabs: Integrating with Zen Command Palette...');
 
@@ -1681,7 +1681,11 @@
 
         } else {
             console.log('QuickTabs: Zen Command Palette not found, retrying in 1000ms');
-            setTimeout(setupCommandPaletteIntegration, 1000);
+            if (retryCount < 10) {
+                setTimeout(() => setupCommandPaletteIntegration(retryCount + 1), 1000);
+            } else {
+                console.warn('QuickTabs: Could not integrate with Zen Command Palette after 10 retries.');
+            }
         }
     }
 

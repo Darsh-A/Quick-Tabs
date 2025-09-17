@@ -185,6 +185,11 @@
         const URL_TYPES = ['text/uri-list', 'text/x-moz-url', 'text/plain'];
 
         try {
+            // If files are being dragged, don't treat it as a URL drop for Quick Tabs
+            if (Array.from(dataTransfer.types).some(type => type === 'Files' || type === 'application/x-moz-file')) {
+                return null;
+            }
+            
             const matchedType = URL_TYPES.find(type => {
                 const data = dataTransfer.getData(type);
                 return typeof data === 'string' && data.trim().length > 0;

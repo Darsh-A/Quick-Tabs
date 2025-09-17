@@ -66,6 +66,7 @@
     let nextContainerId = 1;
     let taskbarExpanded = false;
     let commandListenerAdded = false;
+    let wasExpandedForDrag = false;
 
     // Quick Tab command state for passing parameters
     let quickTabCommandData = {
@@ -1292,6 +1293,62 @@
         containerInfo.element.style.zIndex = '10002';
     }
 
+    function handleTaskbarDragEnter(event, taskbar) {
+        const url = validateURIFromDataTransfer(event.dataTransfer);
+        if (url) {
+            event.preventDefault();
+            event.stopPropagation();
+            taskbar.classList.add('drag-over');
+            if (TASKBAR_TRIGGER === 'hover' && !taskbarExpanded) {
+                expandTaskbar();
+                wasExpandedForDrag = true;
+            }
+        }
+    }
+
+    function handleTaskbarDragOver(event) {
+        const url = validateURIFromDataTransfer(event.dataTransfer);
+        if (url) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'link';
+        }
+    }
+
+    function handleTaskbarDragLeave(event, taskbar) {
+        if (!taskbar.contains(event.relatedTarget)) {
+             taskbar.classList.remove('drag-over');
+             if (wasExpandedForDrag) {
+                 collapseTaskbar();
+                 wasExpandedForDrag = false;
+             }
+        }
+    }
+
+    function handleTaskbarDrop(event, taskbar) {
+        event.preventDefault();
+        event.stopPropagation();
+        // Cleanup is handled by dragend
+        const url = validateURIFromDataTransfer(event.dataTransfer);
+        if (url) {
+            console.log('QuickTabs: Dropped link, creating Quick Tab for:', url);
+            createQuickTabContainer(url);
+        }
+    }
+
+    function handleGlobalDragEnd(taskbar) {
+        if (taskbar && taskbar.classList.contains('drag-over')) {
+            taskbar.classList.remove('drag-over');
+        }
+        if (wasExpandedForDrag) {
+            collapseTaskbar();
+            wasExpandedForDrag = false;
+        }
+        // If no quick tabs are open, remove the taskbar from DOM
+        if (quickTabContainers.size === 0 && taskbar) {
+            taskbar.remove();
+        }
+    }
+
     // Create and manage taskbar
     function createTaskbar() {
         let taskbar = document.getElementById('quicktabs-taskbar');
@@ -1330,59 +1387,11 @@
             toggle.addEventListener('click', () => toggleTaskbar());
         }
 
-        let wasExpandedForDrag = false;
-
-        taskbar.addEventListener('dragenter', (event) => {
-            const url = validateURIFromDataTransfer(event.dataTransfer);
-            if (url) {
-                event.preventDefault();
-                event.stopPropagation();
-                taskbar.classList.add('drag-over');
-                if (TASKBAR_TRIGGER === 'hover' && !taskbarExpanded) {
-                    expandTaskbar();
-                    wasExpandedForDrag = true;
-                }
-            }
-        }, false);
-
-        taskbar.addEventListener('dragover', (event) => {
-            const url = validateURIFromDataTransfer(event.dataTransfer);
-            if (url) {
-                event.preventDefault();
-                event.dataTransfer.dropEffect = 'link';
-            }
-        }, false);
-
-        taskbar.addEventListener('dragleave', (event) => {
-            if (!taskbar.contains(event.relatedTarget)) {
-                 taskbar.classList.remove('drag-over');
-                 if (wasExpandedForDrag) {
-                     collapseTaskbar();
-                     wasExpandedForDrag = false;
-                 }
-            }
-        }, false);
-
-        taskbar.addEventListener('drop', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            // Cleanup is handled by dragend
-            const url = validateURIFromDataTransfer(event.dataTransfer);
-            if (url) {
-                console.log('QuickTabs: Dropped link, creating Quick Tab for:', url);
-                createQuickTabContainer(url);
-            }
-        }, false);
-
-        document.addEventListener('dragend', () => {
-            if (taskbar.classList.contains('drag-over')) {
-                taskbar.classList.remove('drag-over');
-            }
-            if (wasExpandedForDrag) {
-                collapseTaskbar();
-                wasExpandedForDrag = false;
-            }
-        }, false);
+        // Drag and Drop listeners
+        taskbar.addEventListener('dragenter', (event) => handleTaskbarDragEnter(event, taskbar), false);
+        taskbar.addEventListener('dragover', handleTaskbarDragOver, false);
+        taskbar.addEventListener('dragleave', (event) => handleTaskbarDragLeave(event, taskbar), false);
+        taskbar.addEventListener('drop', (event) => handleTaskbarDrop(event, taskbar), false);
 
 
         return taskbar;
@@ -1416,22 +1425,24 @@
 
     // Update taskbar contents
     function updateTaskbar() {
-        const taskbar = createTaskbar();
-        const itemsContainer = taskbar.querySelector('.quicktabs-taskbar-items');
-        
-        // Clear existing items
-        itemsContainer.innerHTML = '';
+        let taskbar = document.getElementById('quicktabs-taskbar');
 
         if (quickTabContainers.size === 0) {
-            taskbar.style.display = 'block';
-            taskbar.classList.add('empty');
-            if (taskbarExpanded) {
-                collapseTaskbar();
+            if (taskbar) {
+                taskbar.remove(); // Remove taskbar from DOM
             }
-        } else {
-            taskbar.style.display = 'block';
-            taskbar.classList.remove('empty');
+            return; // No taskbar needed if no quick tabs
         }
+
+        // If we reach here, quickTabContainers.size > 0
+        if (!taskbar) {
+            taskbar = createTaskbar(); // Create and append if it doesn't exist
+        }
+        
+        const itemsContainer = taskbar.querySelector('.quicktabs-taskbar-items');
+        // Clear existing items
+        itemsContainer.innerHTML = '';
+        taskbar.classList.remove('empty'); // Ensure it's not in empty state
 
         // Add items for each container
         quickTabContainers.forEach((containerInfo) => {
@@ -1891,7 +1902,24 @@
         addContextMenuItem();
         addTabContextMenuItem();
         setupCommandPaletteIntegration();
-        updateTaskbar();
+
+        // Global dragenter listener to show taskbar for drops
+        document.addEventListener('dragenter', (event) => {
+            const url = validateURIFromDataTransfer(event.dataTransfer);
+            if (url) {
+                let taskbar = document.getElementById('quicktabs-taskbar');
+                if (!taskbar) {
+                    taskbar = createTaskbar(); // Create and append if not present
+                }
+                handleTaskbarDragEnter(event, taskbar);
+            }
+        }, false);
+
+        // Global dragend listener for cleanup
+        document.addEventListener('dragend', () => {
+            const taskbar = document.getElementById('quicktabs-taskbar');
+            handleGlobalDragEnd(taskbar);
+        }, false);
     }
 
     // Command setup and handling

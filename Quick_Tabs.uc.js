@@ -12,6 +12,7 @@
     const QUICK_TABS_ANIMATIONS_ENABLED_PREF = "extensions.quicktabs.animations.enabled";
     const QUICK_TABS_CLOSE_SOURCE_TAB_PREF = "extensions.quicktabs.closeSourceTab";
     const QUICK_TABS_CMD_PALETTE_DYNAMIC_PREF = "extensions.quicktabs.commandpalette.dynamic.enabled";
+    const QUICK_TABS_INITIAL_POSITION_PREF = "extensions.quicktabs.initialPosition";
 
     // Configuration helper functions
     const getPref = (prefName, defaultValue = "") => {
@@ -58,6 +59,7 @@
     const TASKBAR_MIN_WIDTH = getPref(QUICK_TABS_TASKBAR_MIN_WIDTH_PREF, 200);
     const ANIMATIONS_ENABLED = getPref(QUICK_TABS_ANIMATIONS_ENABLED_PREF, true);
     const CLOSE_SOURCE_TAB = getPref(QUICK_TABS_CLOSE_SOURCE_TAB_PREF, false);
+    const INITIAL_POSITION = getPref(QUICK_TABS_INITIAL_POSITION_PREF, "center"); // e.g., center, top-left, bottom-right
     
     // Global state
     let quickTabContainers = new Map(); // id -> container info
@@ -680,12 +682,45 @@
         container.appendChild(browser);
         container.appendChild(resizeHandle);
 
-        // Set initial position (centered)
-        const centerX = (window.innerWidth - DEFAULT_WIDTH) / 2;
-        const centerY = (window.innerHeight - DEFAULT_HEIGHT) / 2;
-        container.style.left = `${centerX}px`;
-        container.style.top = `${centerY}px`;
-        console.log('QuickTabs: Positioning container at center:', {centerX, centerY});
+        // Set initial position
+        const { innerWidth, innerHeight } = window;
+        const containerWidth = Math.min(DEFAULT_WIDTH, innerWidth * 0.9);
+        const containerHeight = Math.min(DEFAULT_HEIGHT, innerHeight * 0.9);
+        let top, left;
+        const margin = 20; // Margin from window edges
+
+        switch (INITIAL_POSITION.toLowerCase()) {
+            case 'top-left':
+            case 'left-top':
+                left = margin;
+                top = margin;
+                break;
+            case 'top-right':
+            case 'right-top':
+                left = innerWidth - containerWidth - margin;
+                top = margin;
+                break;
+            case 'bottom-left':
+            case 'left-bottom':
+                left = margin;
+                top = innerHeight - containerHeight - margin;
+                break;
+            case 'bottom-right':
+            case 'right-bottom':
+                left = innerWidth - containerWidth - margin;
+                top = innerHeight - containerHeight - margin;
+                break;
+            case 'center':
+            default:
+                left = (innerWidth - containerWidth) / 2;
+                top = (innerHeight - containerHeight) / 2;
+                break;
+        }
+
+        // Ensure the container is not positioned off-screen
+        container.style.left = `${Math.max(margin, left)}px`;
+        container.style.top = `${Math.max(margin, top)}px`;
+        console.log(`QuickTabs: Positioning container at '${INITIAL_POSITION}':`, { left: container.style.left, top: container.style.top });
 
         document.body.appendChild(container);
 
@@ -1752,6 +1787,7 @@
         console.log('  Taskbar Min Width:', TASKBAR_MIN_WIDTH);
         console.log('  Animations Enabled:', ANIMATIONS_ENABLED);
         console.log('  Close Source Tab:', CLOSE_SOURCE_TAB);
+        console.log('  Initial Position:', INITIAL_POSITION);
         
         injectCSS();
         setupCommands();

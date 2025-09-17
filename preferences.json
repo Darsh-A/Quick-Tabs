@@ -70,6 +70,29 @@
     "default": "T",
     "restart": true
   },
+  {
+    "type": "checkbox",
+    "property": "extensions.quicktabs.commandpalette.dynamic.enabled",
+    "label": "Enable Command Palette Dynamic Commands",
+    "default": true,
+    "restart": true
+  },
+  {
+    "type": "dropdown",
+    "property": "extensions.quicktabs.initialPosition",
+    "label": "Initial position for new Quick Tabs",
+    "value": "string",
+    "default": "center",
+    "placeholder": false,
+    "options": [
+      { "label": "Center", "value": "center" },
+      { "label": "Top-Left", "value": "top-left" },
+      { "label": "Top-Right", "value": "top-right" },
+      { "label": "Bottom-Left", "value": "bottom-left" },
+      { "label": "Bottom-Right", "value": "bottom-right" }
+    ],
+    "restart": true
+  },
 
   {
     "type": "separator",

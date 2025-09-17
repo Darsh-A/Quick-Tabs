@@ -23,6 +23,12 @@ Quick Tabs provides a unique way to browse multiple websites simultaneously with
 - **Right-Click Menu Integration**:
   - Open links in Quick Tabs directly from the context menu
   - Convert existing tabs to Quick Tabs via right-click options
+- **Drag-and-Drop Links**:
+  - Drag any link onto the Quick Tabs taskbar to open it in a new Quick Tab. The taskbar dynamically appears when a link is dragged over the window, even if no Quick Tabs are open.
+- **Renamable Titles**:
+  - Double-click on a Quick Tab's title to customize its name. Renamed titles persist and are not overwritten by page changes.
+- **Zen Command Palette Integration**:
+  - Access Quick Tabs commands (e.g., close all, minimize all, expand/minimize specific tabs) directly from the [Zen Command Palette](https://github.com/BibekBhusal0/zen-custom-js).
 - **Quick Search Integration (Coming Soon)**:
   - Open the Quick Search result in a Quick Tab
 
@@ -48,11 +54,14 @@ OR
 
 ## Usage
 
-1. **Opening Quick Tabs**: Right-click any link → "Open Quick Tab"
+1. **Opening Quick Tabs**:
+   - Right-click any link → "Open Quick Tab"
+   - **Drag-and-Drop**: Drag a link from any webpage or application onto the Quick Tabs taskbar (bottom-right of the window). The taskbar will appear dynamically when a link is dragged over the browser window.
 2. **Managing Windows**: 
    - Drag the header to move
    - Use resize handle (bottom-right) to resize
-   - Minimize/Close buttons in header
+   - Minimize/Close buttons in header (this can also be done if through URL bar if you have Zen Command Palette)
+   - **Renaming Titles**: Double-click on the Quick Tab's title in its header to edit its name. Press Enter to save or Escape to cancel.
 3. **Taskbar**: Hover over the taskbar (bottom-right) to see all Quick Tabs
 4. **Switching**: Click taskbar items to focus or restore minimized tabs
 
@@ -67,6 +76,9 @@ All settings can be configured through Sine's preferences panel:
 ### 🖱️ Behavior Settings  
 - **Taskbar Trigger**: Show taskbar on hover or click
 - **Access Key**: Customize the keyboard shortcut (default: T)
+- **Initial Position**: Set the default screen position for new Quick Tabs.
+  - **Values**: `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`. (Aliases like `left-top` are also supported).
+- **Command Palette Dynamic commands**: Generate dynamic commands (like close/minimize/expand x quick tab) for Zen Command Palette.
 
 ### 📏 Size & Limits
 - **Max Containers**: Maximum number of Quick Tabs allowed (default: 5)
@@ -85,6 +97,8 @@ extensions.quicktabs.defaultWidth = 400
 extensions.quicktabs.defaultHeight = 500
 extensions.quicktabs.taskbar.minWidth = 200
 extensions.quicktabs.animations.enabled = true
+extensions.quicktabs.initialPosition = "center" // e.g., "top-left", "bottom-right"
+extensions.quicktabs.commandpalette.dynamic.enabled = true
 ```
 
 ## API Reference

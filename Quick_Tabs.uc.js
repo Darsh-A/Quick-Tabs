@@ -1330,7 +1330,8 @@
             toggle.addEventListener('click', () => toggleTaskbar());
         }
 
-        // Drag and Drop listeners
+        let wasExpandedForDrag = false;
+
         taskbar.addEventListener('dragenter', (event) => {
             const url = validateURIFromDataTransfer(event.dataTransfer);
             if (url) {
@@ -1339,6 +1340,7 @@
                 taskbar.classList.add('drag-over');
                 if (TASKBAR_TRIGGER === 'hover' && !taskbarExpanded) {
                     expandTaskbar();
+                    wasExpandedForDrag = true;
                 }
             }
         }, false);
@@ -1354,14 +1356,17 @@
         taskbar.addEventListener('dragleave', (event) => {
             if (!taskbar.contains(event.relatedTarget)) {
                  taskbar.classList.remove('drag-over');
+                 if (wasExpandedForDrag) {
+                     collapseTaskbar();
+                     wasExpandedForDrag = false;
+                 }
             }
         }, false);
 
         taskbar.addEventListener('drop', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            taskbar.classList.remove('drag-over');
-
+            // Cleanup is handled by dragend
             const url = validateURIFromDataTransfer(event.dataTransfer);
             if (url) {
                 console.log('QuickTabs: Dropped link, creating Quick Tab for:', url);
@@ -1372,6 +1377,10 @@
         document.addEventListener('dragend', () => {
             if (taskbar.classList.contains('drag-over')) {
                 taskbar.classList.remove('drag-over');
+            }
+            if (wasExpandedForDrag) {
+                collapseTaskbar();
+                wasExpandedForDrag = false;
             }
         }, false);
 
@@ -1414,11 +1423,15 @@
         itemsContainer.innerHTML = '';
 
         if (quickTabContainers.size === 0) {
-            taskbar.style.display = 'none';
-            return;
+            taskbar.style.display = 'block';
+            taskbar.classList.add('empty');
+            if (taskbarExpanded) {
+                collapseTaskbar();
+            }
+        } else {
+            taskbar.style.display = 'block';
+            taskbar.classList.remove('empty');
         }
-
-        taskbar.style.display = 'block';
 
         // Add items for each container
         quickTabContainers.forEach((containerInfo) => {
@@ -1878,7 +1891,7 @@
         addContextMenuItem();
         addTabContextMenuItem();
         setupCommandPaletteIntegration();
-        
+        updateTaskbar();
     }
 
     // Command setup and handling

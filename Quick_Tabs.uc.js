@@ -306,6 +306,19 @@
                 min-width: 0;
             }
 
+            .quicktab-title-editor {
+                flex: 1;
+                font-size: 13px;
+                font-weight: 500;
+                border: 1px solid ${currentTheme.containerBorder};
+                background-color: ${currentTheme.containerBg};
+                color: ${currentTheme.headerColor};
+                padding: 2px 4px;
+                border-radius: 3px;
+                margin: 0;
+                min-width: 0;
+            }
+
             .quicktab-button {
                 width: 26px;
                 height: 26px;
@@ -778,13 +791,19 @@
             backButton: backButton,
             forwardButton: forwardButton,
             openInTabButton: openInTabButton,
-            minimized: false
+            minimized: false,
+            customTitle: false
         };
 
 
 
         // Function to update title and URL from various sources
         const updateContainerTitle = () => {
+            // If the title is custom, do not overwrite it
+            if (containerInfo.customTitle) {
+                return;
+            }
+
             try {
                 let pageTitle = null;
                 let currentUrl = null;
@@ -1042,11 +1061,57 @@
         const closeButton = allButtons[4];
         const resizeHandle = element.querySelector('.quicktab-resize-handle');
 
+        // Double-click to rename title
+        titleElement.addEventListener('dblclick', (e) => {
+            e.stopPropagation(); // Prevent dragging from starting
+            e.preventDefault(); // Prevent text selection
+
+            const currentTitle = containerInfo.title; // Use containerInfo.title for full title
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentTitle;
+            input.className = 'quicktab-title-editor'; // For styling
+
+            // Replace titleElement with input
+            titleElement.replaceWith(input);
+            input.focus();
+            input.select();
+
+            const saveTitle = () => {
+                const newTitle = input.value.trim();
+                if (newTitle && newTitle !== currentTitle) {
+                    containerInfo.title = newTitle;
+                    containerInfo.customTitle = true; // Mark as custom title
+                    titleElement.textContent = truncateText(newTitle, 30);
+                    titleElement.title = newTitle;
+                    updateTaskbar(); // Update taskbar with new title
+                }
+                input.replaceWith(titleElement); // Replace input back with titleElement
+            };
+
+            const cancelEdit = () => {
+                input.replaceWith(titleElement); // Replace input back with titleElement
+            };
+
+            input.addEventListener('blur', saveTitle); // Save on blur
+            input.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    saveTitle();
+                    input.removeEventListener('blur', saveTitle); // Prevent blur from firing again
+                } else if (event.key === 'Escape') {
+                    cancelEdit();
+                    input.removeEventListener('blur', saveTitle); // Prevent blur from firing again
+                }
+            });
+        });
+
         // Dragging functionality
         let isDragging = false;
         let dragStartX, dragStartY, elementStartX, elementStartY;
 
         header.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('quicktab-title-editor')) return;
+
             if (e.target === backButton || e.target === forwardButton || 
                 e.target === openInTabButton || e.target === minimizeButton || 
                 e.target === closeButton) return;

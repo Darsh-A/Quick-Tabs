@@ -11,6 +11,7 @@
     const QUICK_TABS_TASKBAR_MIN_WIDTH_PREF = "extensions.quicktabs.taskbar.minWidth";
     const QUICK_TABS_ANIMATIONS_ENABLED_PREF = "extensions.quicktabs.animations.enabled";
     const QUICK_TABS_CLOSE_SOURCE_TAB_PREF = "extensions.quicktabs.closeSourceTab";
+    const QUICK_TABS_CMD_PALETTE_DYNAMIC_PREF = "extensions.quicktabs.commandpalette.dynamic.enabled";
 
     // Configuration helper functions
     const getPref = (prefName, defaultValue = "") => {
@@ -1626,6 +1627,115 @@
         console.log('QuickTabs: Tab context menu item visibility set to:', !hasValidTab ? 'hidden' : 'visible');
     }
 
+    // Command Palette Integration
+    function setupCommandPaletteIntegration() {
+        if (window.ZenCommandPalette) {
+            console.log('QuickTabs: Integrating with Zen Command Palette...');
+
+            // Add static commands
+            window.ZenCommandPalette.addCommands([
+                {
+                    key: "quicktabs:close-all",
+                    label: "Close All Quick Tabs",
+                    command: () => {
+                        quickTabContainers.forEach(info => closeContainer(info));
+                    },
+                    condition: () => quickTabContainers.size > 0,
+                    icon: "chrome://browser/skin/zen-icons/close-all.svg",
+                    tags: ["quick", "tabs", "close", "all"]
+                },
+                {
+                    key: "quicktabs:minimize-all",
+                    label: "Minimize All Quick Tabs",
+                    command: () => {
+                        quickTabContainers.forEach(info => {
+                            if (!info.minimized) {
+                                minimizeContainer(info);
+                            }
+                        });
+                    },
+                    condition: () => Array.from(quickTabContainers.values()).some(c => !c.minimized),
+                    icon: "chrome://global/skin/icons/minus.svg",
+                    tags: ["quick", "tabs", "minimize", "all"]
+                }
+            ]);
+
+            // Add dynamic commands provider
+      window.ZenCommandPalette.addDynamicCommandsProvider(
+        generateQuickTabCommands,
+        QUICK_TABS_CMD_PALETTE_DYNAMIC_PREF,
+{ allowIcons : false, allowShortcuts : false }
+      );
+            
+            // Set default for the preference if not set
+            try {
+                const prefService = Services.prefs;
+                if (!prefService.prefHasUserValue(QUICK_TABS_CMD_PALETTE_DYNAMIC_PREF)) {
+                    prefService.setBoolPref(QUICK_TABS_CMD_PALETTE_DYNAMIC_PREF, true);
+                }
+            } catch (e) {
+                console.warn(`QuickTabs: Failed to set default preference for command palette integration:`, e);
+            }
+
+            console.log('QuickTabs: Zen Command Palette integration successful.');
+
+        } else {
+            console.log('QuickTabs: Zen Command Palette not found, retrying in 1000ms');
+            setTimeout(setupCommandPaletteIntegration, 1000);
+        }
+    }
+
+    async function generateQuickTabCommands() {
+        const commands = [];
+        if (quickTabContainers.size === 0) {
+            return commands;
+        }
+
+        quickTabContainers.forEach(containerInfo => {
+            const title = truncateText(containerInfo.title, 40);
+            const lowerTitle = containerInfo.title.toLowerCase();
+
+            // Command to Close
+            commands.push({
+                key: `quicktabs:close:${containerInfo.id}`,
+                label: `Close Quick Tab: ${title}`,
+                command: () => closeContainer(containerInfo),
+                icon: "chrome://global/skin/icons/close.svg",
+                tags: ["quick", "tab", "close", lowerTitle]
+            });
+
+            if (containerInfo.minimized) {
+                // Command to Expand (Restore)
+                commands.push({
+                    key: `quicktabs:expand-restore:${containerInfo.id}`,
+                    label: `Expand Quick Tab: ${title}`,
+                    command: () => restoreContainer(containerInfo),
+                    icon: containerInfo.favicon.src,
+                    tags: ["quick", "tab", "expand", "restore", lowerTitle]
+                });
+            } else {
+                // Command to Minimize
+                commands.push({
+                    key: `quicktabs:minimize:${containerInfo.id}`,
+                    label: `Minimize Quick Tab: ${title}`,
+                    command: () => minimizeContainer(containerInfo),
+                    icon: "chrome://global/skin/icons/minus.svg",
+                    tags: ["quick", "tab", "minimize", lowerTitle]
+                });
+                // Command to Expand (Focus/Bring to Front)
+                commands.push({
+                    key: `quicktabs:expand-focus:${containerInfo.id}`,
+                    label: `Expand Quick Tab: ${title}`,
+                    command: () => bringToFront(containerInfo),
+                    icon: containerInfo.favicon.src,
+                    tags: ["quick", "tab", "expand", "focus", lowerTitle]
+                });
+            }
+        });
+
+        return commands;
+    }
+
     // Initialization
     function init() {
         console.log('QuickTabs: Starting initialization...');
@@ -1643,6 +1753,7 @@
         setupCommands();
         addContextMenuItem();
         addTabContextMenuItem();
+        setupCommandPaletteIntegration();
         
     }
 
@@ -1833,3 +1944,4 @@
         setTimeout(init, 100);
     }
 })();
+

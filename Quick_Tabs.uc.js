@@ -179,6 +179,33 @@
         return text.substring(0, maxLength - 3) + '...';
     };
 
+    // Utility function to validate a URI from data transfer
+    const validateURIFromDataTransfer = (dataTransfer) => {
+        const URL_TYPES = ['text/uri-list', 'text/x-moz-url', 'text/plain'];
+
+        try {
+            const matchedType = URL_TYPES.find(type => {
+                const data = dataTransfer.getData(type);
+                return typeof data === 'string' && data.trim().length > 0;
+            });
+
+            if (!matchedType) return null;
+
+            const uriString = dataTransfer.getData(matchedType).trim();
+            if (!uriString) return null;
+
+            // Use fixup service to get a valid URI
+            const fixupFlags = Ci.nsIURIFixup.FIXUP_FLAG_FIX_SCHEME_TYPOS | Ci.nsIURIFixup.FIXUP_FLAG_ALLOW_KEYWORD_LOOKUP;
+            const info = Services.uriFixup.getFixupURIInfo(uriString, fixupFlags);
+
+            return info?.fixedURI?.spec || null;
+
+        } catch (e) {
+            // This can happen if dragging from a private tab, just ignore.
+            return null;
+        }
+    };
+
     // CSS injection function
     const injectCSS = () => {
         const existingStyle = document.getElementById('quicktabs-styles');
@@ -494,6 +521,17 @@
 
             .quicktabs-taskbar-item .close:hover img {
                 opacity: 1;
+            }
+
+            #quicktabs-taskbar.drag-over {
+                background-color: ${currentTheme.buttonHover} !important;
+                border: 1px dashed ${currentTheme.headerColor} !important;
+                transform: scale(1.05);
+            }
+
+            #quicktabs-taskbar.drag-over .quicktabs-taskbar-toggle span::after {
+                content: " (Drop to open)";
+                font-style: italic;
             }
 
 
@@ -1291,6 +1329,52 @@
         } else {
             toggle.addEventListener('click', () => toggleTaskbar());
         }
+
+        // Drag and Drop listeners
+        taskbar.addEventListener('dragenter', (event) => {
+            const url = validateURIFromDataTransfer(event.dataTransfer);
+            if (url) {
+                event.preventDefault();
+                event.stopPropagation();
+                taskbar.classList.add('drag-over');
+                if (TASKBAR_TRIGGER === 'hover' && !taskbarExpanded) {
+                    expandTaskbar();
+                }
+            }
+        }, false);
+
+        taskbar.addEventListener('dragover', (event) => {
+            const url = validateURIFromDataTransfer(event.dataTransfer);
+            if (url) {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'link';
+            }
+        }, false);
+
+        taskbar.addEventListener('dragleave', (event) => {
+            if (!taskbar.contains(event.relatedTarget)) {
+                 taskbar.classList.remove('drag-over');
+            }
+        }, false);
+
+        taskbar.addEventListener('drop', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            taskbar.classList.remove('drag-over');
+
+            const url = validateURIFromDataTransfer(event.dataTransfer);
+            if (url) {
+                console.log('QuickTabs: Dropped link, creating Quick Tab for:', url);
+                createQuickTabContainer(url);
+            }
+        }, false);
+
+        document.addEventListener('dragend', () => {
+            if (taskbar.classList.contains('drag-over')) {
+                taskbar.classList.remove('drag-over');
+            }
+        }, false);
+
 
         return taskbar;
     }

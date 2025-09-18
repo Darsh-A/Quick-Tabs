@@ -1870,15 +1870,21 @@
                     condition: () => Array.from(quickTabContainers.values()).some(c => !c.minimized),
                     icon: "chrome://global/skin/icons/minus.svg",
                     tags: ["quick", "tabs", "minimize", "all"]
-                }
+                },
+                {
+                    key: "quicktabs:fromcurrent",
+                    label: "Add Quick Tab from Current",
+                    command: () => handleOpenQuickTabFromCurrentCommand(),
+                    tags: ["quick", "tab"]
+                },
             ]);
 
             // Add dynamic commands provider
-      window.ZenCommandPalette.addDynamicCommandsProvider(
-        generateQuickTabCommands,
-        QUICK_TABS_CMD_PALETTE_DYNAMIC_PREF,
-{ allowIcons : false, allowShortcuts : false }
-      );
+            window.ZenCommandPalette.addDynamicCommandsProvider(
+                generateQuickTabCommands,
+                QUICK_TABS_CMD_PALETTE_DYNAMIC_PREF,
+                { allowIcons : false, allowShortcuts : false }
+            );
             
             // Set default for the preference if not set
             try {
